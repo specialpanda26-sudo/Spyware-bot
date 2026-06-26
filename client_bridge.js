@@ -13,6 +13,62 @@ const fs = require("fs");
 const path = require("path");
 const pino = require("pino");
 const qrcode = require("qrcode-terminal");
+const http = require('http');
+let pendingPairResolve = null;
+let lastPairingCode = null;
+let lastPairingNumber = null;
+let botOnline = false;
+const pairServer = http.createServer(async (req, res) => {
+  const url = new URL(req.url, 'http://' + req.headers.host);
+  if (req.method === 'GET' && url.pathname === '/pair') {
+    res.writeHead(200, {'Content-Type': 'text/html'});
+    res.end('<!DOCTYPE html><html><head><title>Shark Bot Pair</title><meta name=viewport content=width=device-width,initial-scale=1><style>*{box-sizing:border-box;margin:0;padding:0}body{background:#0f172a;color:#e2e8f0;font-family:Arial,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px}.card{background:#1e293b;border-radius:16px;padding:32px;max-width:420px;width:100%;border:1px solid #334155}h1{color:#38bdf8;font-size:24px;margin-bottom:8px}p{color:#94a3b8;margin-bottom:24px;font-size:14px}input{width:100%;padding:14px;border-radius:10px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-size:16px;margin-bottom:16px}button{width:100%;padding:14px;border-radius:10px;background:#0ea5e9;color:white;font-size:16px;font-weight:bold;border:none;cursor:pointer}.code{background:#0f172a;border:2px solid #38bdf8;border-radius:12px;padding:20px;text-align:center;margin-top:20px;font-size:32px;font-weight:bold;letter-spacing:8px;color:#38bdf8}.steps{margin-top:16px;background:#0f172a;border-radius:10px;padding:16px;font-size:13px;color:#94a3b8;line-height:1.8}</style></head><body><div class=card><h1>🦈 Shark Bot</h1><p>Enter your WhatsApp number to get a pairing code</p>' + (lastPairingCode ? '<div class=code>' + lastPairingCode + '</div><p style=margin-top:12px;color:#93c5fd>For: +' + lastPairingNumber + '</p>' : '') + '<form method=POST action=/pair style=margin-top:20px><input type=tel name=number placeholder="e.g. 254712345678" required><button type=submit>Get Pairing Code</button></form><div class=steps><b>How to link:</b><br>1. Enter your number<br>2. Copy the code<br>3. WhatsApp → Linked Devices<br>4. Link with phone number<br>5. Enter the code</div></div></body></html>');
+    return;
+  }
+  if (req.method === 'POST' && url.pathname === '/pair') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', () => {
+      const params = new URLSearchParams(body);
+      const number = (params.get('number') || '').replace(/[s-+]/g, '');
+      if (number && pendingPairResolve) { lastPairingNumber = number; pendingPairResolve(number); pendingPairResolve = null; }
+      res.writeHead(302, {Location: '/pair'}); res.end();
+    });
+    return;
+  }
+  res.writeHead(200, {'Content-Type': 'application/json'});
+  res.end(JSON.stringify({status:'ok',online:botOnline}));
+});
+pairServer.listen(process.env.WEB_PORT || 3000, () => console.log('🌐 Pair UI: http://localhost:' + (process.env.WEB_PORT || 3000) + '/pair'));
+
+const http = require('http');
+let pendingPairResolve = null;
+let lastPairingCode = null;
+let lastPairingNumber = null;
+let botOnline = false;
+const pairServer = http.createServer(async (req, res) => {
+  const url = new URL(req.url, 'http://' + req.headers.host);
+  if (req.method === 'GET' && url.pathname === '/pair') {
+    res.writeHead(200, {'Content-Type': 'text/html'});
+    res.end('<!DOCTYPE html><html><head><title>Shark Bot Pair</title><meta name=viewport content=width=device-width,initial-scale=1><style>*{box-sizing:border-box;margin:0;padding:0}body{background:#0f172a;color:#e2e8f0;font-family:Arial,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px}.card{background:#1e293b;border-radius:16px;padding:32px;max-width:420px;width:100%;border:1px solid #334155}h1{color:#38bdf8;font-size:24px;margin-bottom:8px}p{color:#94a3b8;margin-bottom:24px;font-size:14px}input{width:100%;padding:14px;border-radius:10px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-size:16px;margin-bottom:16px}button{width:100%;padding:14px;border-radius:10px;background:#0ea5e9;color:white;font-size:16px;font-weight:bold;border:none;cursor:pointer}.code{background:#0f172a;border:2px solid #38bdf8;border-radius:12px;padding:20px;text-align:center;margin-top:20px;font-size:32px;font-weight:bold;letter-spacing:8px;color:#38bdf8}.steps{margin-top:16px;background:#0f172a;border-radius:10px;padding:16px;font-size:13px;color:#94a3b8;line-height:1.8}</style></head><body><div class=card><h1>🦈 Shark Bot</h1><p>Enter your WhatsApp number to get a pairing code</p>' + (lastPairingCode ? '<div class=code>' + lastPairingCode + '</div><p style=margin-top:12px;color:#93c5fd>For: +' + lastPairingNumber + '</p>' : '') + '<form method=POST action=/pair style=margin-top:20px><input type=tel name=number placeholder="e.g. 254712345678" required><button type=submit>Get Pairing Code</button></form><div class=steps><b>How to link:</b><br>1. Enter your number<br>2. Copy the code<br>3. WhatsApp → Linked Devices<br>4. Link with phone number<br>5. Enter the code</div></div></body></html>');
+    return;
+  }
+  if (req.method === 'POST' && url.pathname === '/pair') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', () => {
+      const params = new URLSearchParams(body);
+      const number = (params.get('number') || '').replace(/[s-+]/g, '');
+      if (number && pendingPairResolve) { lastPairingNumber = number; pendingPairResolve(number); pendingPairResolve = null; }
+      res.writeHead(302, {Location: '/pair'}); res.end();
+    });
+    return;
+  }
+  res.writeHead(200, {'Content-Type': 'application/json'});
+  res.end(JSON.stringify({status:'ok',online:botOnline}));
+});
+pairServer.listen(process.env.WEB_PORT || 3000, () => console.log('🌐 Pair UI: http://localhost:' + (process.env.WEB_PORT || 3000) + '/pair'));
+
 
 const logger = pino({ level: "silent" });
 const BACKEND_URL = "http://127.0.0.1:5000";
@@ -331,7 +387,7 @@ async function startSession(sessionId) {
     }
 
     if (connection === "open") {
-      console.log(`\n✅ [${sessionId}] SHARK BOT IS ONLINE AND READY! 🦈\n`);
+      console.log(`\n✅ [${sessionId}] SHARK BOT IS ONLINE AND READY! 🦈\n`); botOnline = true; botOnline = true;
     }
 
     if (connection === "close") {
