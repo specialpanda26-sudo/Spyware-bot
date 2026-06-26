@@ -227,16 +227,16 @@ async function startSession(sessionId) {
             { logger, reuploadRequest: socket.updateMediaMessage }
           );
 
-          await socket.sendMessage(socket.user.id, {
+          await socket.sendMessage(selfJid, {
             text: `📸 *View Once received from ${name} (${sender})*`
           });
 
           if (mediaType === "imageMessage") {
-            await socket.sendMessage(socket.user.id, { image: buffer, caption: `Saved view-once image${caption}` });
+            await socket.sendMessage(selfJid, { image: buffer, caption: `Saved view-once image${caption}` });
           } else if (mediaType === "videoMessage") {
-            await socket.sendMessage(socket.user.id, { video: buffer, caption: `Saved view-once video${caption}` });
+            await socket.sendMessage(selfJid, { video: buffer, caption: `Saved view-once video${caption}` });
           } else if (mediaType === "audioMessage") {
-            await socket.sendMessage(socket.user.id, {
+            await socket.sendMessage(selfJid, {
               audio: buffer,
               mimetype: inner.mimetype || "audio/ogg; codecs=opus",
               ptt: true
@@ -270,30 +270,29 @@ async function startSession(sessionId) {
 
       // Core Command Handler (slash commands only)
       if (body.startsWith("/")) {
-        // Feature: Anti-Ban random human-like delay
         const humanDelay = Math.floor(Math.random() * 1500) + 800;
         await delay(humanDelay);
 
-        // Feature: Fake Typing / Recording simulation
         const presenceType = body.startsWith("/download_song") ? "recording" : "composing";
-        try {
-          await socket.sendPresenceUpdate(presenceType, sender);
-        } catch (e) {}
+        try { await socket.sendPresenceUpdate(presenceType, sender); } catch (e) {}
 
-        let replyText;
         try {
           const response = await apiClient.post("/webhook", { body, sender });
-          replyText = response.data?.reply;
+          const data = response.data;
+
+          try { await socket.sendPresenceUpdate("paused", sender); } catch (e) {}
+
+          if (data.type === "image" && data.url) {
+            await socket.sendMessage(sender, { image: { url: data.url }, caption: data.caption || "" });
+          } else if (data.type === "video" && data.url) {
+            await socket.sendMessage(sender, { video: { url: data.url }, caption: data.caption || "", mimetype: "video/mp4" });
+          } else if (data.type === "audio" && data.url) {
+            await socket.sendMessage(sender, { audio: { url: data.url }, mimetype: "audio/mpeg", ptt: false });
+          } else if (data.reply) {
+            await socket.sendMessage(sender, { text: data.reply });
+          }
         } catch (e) {
-          replyText = `❌ Bot error: ${e.message}`;
-        }
-
-        try {
-          await socket.sendPresenceUpdate("paused", sender);
-        } catch (e) {}
-
-        if (replyText) {
-          await socket.sendMessage(sender, { text: replyText });
+          await socket.sendMessage(sender, { text: `❌ Bot error: ${e.message}` });
         }
       }
     } catch (error) {

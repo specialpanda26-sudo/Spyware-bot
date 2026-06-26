@@ -253,19 +253,29 @@ async def log_message():
 
 @app.route("/react", methods=["POST"])
 async def process_sentiment():
+    import random
     data = await request.get_json() or {}
     p = data.get("body", "").lower().strip()
-    if any(w in p for w in ["love", "heart", "perfect", "amazing", "beautiful"]):
-        return jsonify({"emoji": "❤️"})
-    if any(w in p for w in ["lol", "haha", "lmao", "funny", "😂"]):
-        return jsonify({"emoji": "😂"})
-    if any(w in p for w in ["sad", "cry", "miss", "sorry"]):
-        return jsonify({"emoji": "🥺"})
-    if any(w in p for w in ["fire", "lit", "banger", "🔥"]):
-        return jsonify({"emoji": "🔥"})
-    if any(w in p for w in ["wow", "omg", "seriously", "really"]):
-        return jsonify({"emoji": "😮"})
-    return jsonify({"emoji": "👍"})
+    if random.random() > 0.6:
+        return jsonify({"emoji": None})
+    if any(w in p for w in ["love", "heart", "perfect", "amazing", "beautiful", "cute", "sweet"]):
+        return jsonify({"emoji": random.choice(["❤️", "😍", "🥰", "💕"])})
+    if any(w in p for w in ["lol", "haha", "lmao", "funny", "joke", "hilarious"]):
+        return jsonify({"emoji": random.choice(["😂", "🤣", "💀", "😭"])})
+    if any(w in p for w in ["sad", "cry", "miss", "alone", "depressed", "pain", "hurt"]):
+        return jsonify({"emoji": random.choice(["🥺", "😢", "💔", "🫂"])})
+    if any(w in p for w in ["fire", "lit", "banger", "hard", "crazy", "insane"]):
+        return jsonify({"emoji": random.choice(["🔥", "💯", "🫡", "👏"])})
+    if any(w in p for w in ["wow", "omg", "seriously", "really", "no way", "what"]):
+        return jsonify({"emoji": random.choice(["😮", "😱", "🤯", "👀"])})
+    if any(w in p for w in ["good", "nice", "cool", "great", "okay", "ok", "yes"]):
+        return jsonify({"emoji": random.choice(["👍", "✅", "💪", "🙌"])})
+    if any(w in p for w in ["money", "paid", "cash", "rich", "hustle", "business"]):
+        return jsonify({"emoji": random.choice(["💰", "🤑", "💵", "📈"])})
+    if any(w in p for w in ["fuck", "shit", "damn", "bro", "fam", "aye"]):
+        return jsonify({"emoji": random.choice(["💀", "😭", "🤣", "👀"])})
+    return jsonify({"emoji": random.choice(["👍", "🙏", "💯", "😊", "🫡", None, None])})
+
 
 
 @app.route("/get-bio", methods=["GET"])
