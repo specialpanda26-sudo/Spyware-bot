@@ -116,7 +116,7 @@ async function startSession(sessionId) {
     markOnlineOnConnect: true,
     generateHighQualityLinkPreview: true,
     // Helps avoid bans — don't look like web browser
-    browser: ["Henry Tech V5", "Safari", "5.0"]
+    browser: ["Ubuntu", "Chrome", "20.0.04"]
   });
 
   // Pairing code generation
