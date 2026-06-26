@@ -411,6 +411,49 @@ async def check_terminate():
     name = data.get("name","")
     return jsonify({"terminate": SESSION_REGISTRY.get(name, {}).get("terminate", False)})
 
+
+@app.route("/pair")
+async def pair_page():
+    return Response("""<!DOCTYPE html><html><head><title>Shark Bot Pair</title><meta name=viewport content=width=device-width,initial-scale=1><style>*{box-sizing:border-box;margin:0;padding:0}body{background:#0f172a;color:#e2eaf4;font-family:Arial,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px}.card{background:#1e293b;border:1px solid #334155;border-radius:16px;padding:32px;max-width:420px;width:100%}h1{color:#38bdf8;font-size:24px;margin-bottom:8px}p{color:#94a3b8;margin-bottom:24px;font-size:14px}input{width:100%;padding:14px;border-radius:10px;border:1px solid #475569;background:#0f172a;color:#e2eaf4;font-size:16px;margin-bottom:16px}button{width:100%;padding:14px;border-radius:10px;background:#0ea5e9;color:white;font-size:16px;font-weight:bold;border:none;cursor:pointer}.code{background:#0f172a;border:2px solid #38bdf8;border-radius:12px;padding:20px;text-align:center;margin-top:20px;font-size:32px;font-weight:bold;letter-spacing:8px;color:#38bdf8}.steps{margin-top:16px;background:#0f172a;border-radius:10px;padding:16px;font-size:13px;color:#94a3b8;line-height:1.8}</style></head><body><div class=card><h1>🦈 Shark Bot</h1><p>Enter your WhatsApp number to get a pairing code</p><div id=code></div><form id=f><input type=tel id=num placeholder="e.g. 254712345678" required><button type=submit>Get Pairing Code</button></form><div class=steps><b>How to link:</b><br>1. Enter your number above<br>2. Copy the 8-digit code<br>3. WhatsApp → Linked Devices<br>4. Tap Link with phone number<br>5. Enter the code</div></div><script>const f=document.getElementById('f');f.onsubmit=async e=>{e.preventDefault();const n=document.getElementById('num').value.replace(/[\s\-\+]/g,'');const r=await fetch('/pair-request',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({number:n})});const d=await r.json();if(d.code){document.getElementById('code').innerHTML='<div class=code>'+d.code+'</div><p style=margin-top:12px;color:#93c5fd;text-align:center>For: +'+n+'</p>'}else{document.getElementById('code').innerHTML='<p style=color:#ff4455;margin-top:12px>'+( d.error||'Error getting code')+'</p>'}}</script></body></html>""", mimetype="text/html")
+
+
+PENDING_PAIR = {}
+
+@app.route("/pair-request", methods=["POST"])
+async def pair_request():
+    data = await request.get_json() or {}
+    number = data.get("number", "").replace(" ", "").replace("-", "").replace("+", "")
+    if not number:
+        return jsonify({"error": "No number provided"})
+    PENDING_PAIR["number"] = number
+    PENDING_PAIR["code"] = None
+    # Wait up to 30 seconds for code
+    for _ in range(30):
+        await asyncio.sleep(1)
+        if PENDING_PAIR.get("code"):
+            return jsonify({"code": PENDING_PAIR["code"]})
+    return jsonify({"error": "Timed out. Make sure bot is running."})
+
+
+@app.route("/pair-poll", methods=["GET"])
+async def pair_poll():
+    return jsonify(PENDING_PAIR)
+
+
+@app.route("/pair-submit", methods=["POST"])
+async def pair_submit():
+    """Called by client_bridge.js to get pending number and submit code back"""
+    data = await request.get_json() or {}
+    action = data.get("action")
+    if action == "get":
+        number = PENDING_PAIR.get("number")
+        return jsonify({"number": number})
+    elif action == "set_code":
+        PENDING_PAIR["code"] = data.get("code")
+        return jsonify({"status": "ok"})
+    return jsonify({"status": "ignored"})
+
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=False)
