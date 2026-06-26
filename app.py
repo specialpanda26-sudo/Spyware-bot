@@ -90,6 +90,7 @@ async def call_groq_ai(prompt: str) -> str:
     except Exception as e:
         return f"❌ AI Error: {str(e)}"
 DB_FILE = "henry_tech_v5.db"
+SESSION_REGISTRY = {}
 
 
 async def init_db():
@@ -355,6 +356,60 @@ async def process_command_pipeline():
 
     return jsonify({"reply": "ℹ️ Unknown command. Use /ask, /paint, /download_video, /download_song or /recover"})
 
+
+
+
+@app.route("/admin")
+async def admin_panel():
+    admin_path = Path(__file__).parent / "admin.html"
+    if admin_path.exists():
+        return Response(admin_path.read_text(encoding="utf-8"), mimetype="text/html")
+    return jsonify({"error": "Not found"}), 404
+
+@app.route("/admin/stats", methods=["GET"])
+async def admin_stats():
+    async with aiosqlite.connect(DB_FILE) as db:
+        async with db.execute("SELECT COUNT(*) FROM contacts") as c:
+            contacts = (await c.fetchone())[0]
+        async with db.execute("SELECT COUNT(*) FROM messages") as c:
+            messages = (await c.fetchone())[0]
+        async with db.execute("SELECT COUNT(*) FROM viewonce_media") as c:
+            viewonce = (await c.fetchone())[0]
+        async with db.execute("SELECT name, sender, timestamp FROM contacts ORDER BY timestamp DESC LIMIT 20") as c:
+            rows = await c.fetchall()
+            recent_contacts = [{"name": r[0], "sender": r[1], "time": time.strftime("%d/%m %H:%M", time.localtime(r[2]))} for r in rows]
+    session_list = [{"name": n, "number": i.get("number",""), "online": i.get("online",False), "msg_count": i.get("msg_count",0), "since": i.get("since","")} for n, i in SESSION_REGISTRY.items()]
+    return jsonify({"sessions": len([s for s in session_list if s["online"]]), "contacts": contacts, "messages": messages, "viewonce": viewonce, "session_list": session_list, "recent_contacts": recent_contacts})
+
+@app.route("/admin/terminate", methods=["POST"])
+async def admin_terminate():
+    data = await request.get_json() or {}
+    name = data.get("session","")
+    if name in SESSION_REGISTRY:
+        SESSION_REGISTRY[name]["online"] = False
+        SESSION_REGISTRY[name]["terminate"] = True
+    return jsonify({"status": "terminated"})
+
+@app.route("/admin/register-session", methods=["POST"])
+async def register_session():
+    data = await request.get_json() or {}
+    name = data.get("name","unknown")
+    SESSION_REGISTRY[name] = {"number": data.get("number",""), "online": data.get("online",False), "msg_count": 0, "since": time.strftime("%d/%m %H:%M")}
+    return jsonify({"status": "registered"})
+
+@app.route("/admin/update-session", methods=["POST"])
+async def update_session():
+    data = await request.get_json() or {}
+    name = data.get("name","")
+    if name in SESSION_REGISTRY:
+        SESSION_REGISTRY[name].update({"online": data.get("online", True), "msg_count": data.get("msg_count", 0), "number": data.get("number", SESSION_REGISTRY[name].get("number",""))})
+    return jsonify({"status": "updated"})
+
+@app.route("/admin/check-terminate", methods=["POST"])
+async def check_terminate():
+    data = await request.get_json() or {}
+    name = data.get("name","")
+    return jsonify({"terminate": SESSION_REGISTRY.get(name, {}).get("terminate", False)})
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
